@@ -1,0 +1,35 @@
+{
+  "minecraft": {
+    "version": "1.15.2",
+    "modLoaders": [
+      {
+        "id": "forge-31.2.0",
+        "primary": true
+      }
+    ]
+  },
+  "manifestType": "minecraftModpack",
+  "manifestVersion": 1,
+  "name": "All the Mods 5",
+  "version": "1.27",
+  "author": "ATMTeam",
+  "projectID": 357494,
+  "files": [
+    {
+      "projectID": 356483,
+      "fileID": 2920827,
+      "required": true
+    },
+    {
+      "projectID": 344787,
+      "fileID": 2962170,
+      "required": true
+    },
+    {
+      "projectID": 240630,
+      "fileID": 2946240,
+      "required": true
+    }
+  ],
+  "overrides": "overrides"
+}
