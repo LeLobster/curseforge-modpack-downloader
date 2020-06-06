@@ -30,6 +30,7 @@ def is_valid_path(path: str) -> bool:
     path = pathlib.Path(path)
     if path.exists():
         if path.is_file():
-            return os.access(path, os.R_OK) and os.access(path, os.W_OK)
-        return path.is_dir()
+            return os.access(path, os.R_OK)  # read
+        if path.is_dir():
+            return os.access(path, os.W_OK)  # write
     return False
