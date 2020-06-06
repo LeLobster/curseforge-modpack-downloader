@@ -1,13 +1,45 @@
 #!/usr/bin/env python3
 
 import argparse
+import json
 import sys
+from pathlib import Path
 from pprint import pprint
 
 from utils import (
     is_valid_path,
     get_full_path
 )
+
+
+def parse_manifest(manifest: Path, forge: bool):
+    """
+    Open the manifest file and extract mod info (projectID & fileID), and
+     the required Forge version info
+
+    :param manifest:    Path    - The manifest file
+    :param forge:       boolean - Include forge version?
+    :return:            dict    - Containing mods & forge info
+    """
+    modpack_info = {}
+
+    with manifest.open() as m:
+        manifest_file = m.read()
+        try:
+            manifest_json = json.loads(manifest_file)
+            print("Manifest file parsed succesfully")
+        except json.decoder.JSONDecodeError as e:
+            m.close()
+            sys.exit(f"An error occurred while parsing the manifest file\n\"{e}\"")
+
+    if forge:
+        modpack_info["forge"] = manifest_json["minecraft"]["modLoaders"][0]["id"].replace("forge-", "")
+    else:
+        modpack_info["forge"] = None
+    modpack_info["minecraft"] = manifest_json["minecraft"]["version"]
+
+    modpack_info["mods"] = [mod for mod in manifest_json['files']]
+    return modpack_info
 
 
 def validate_args(arguments: dict):
@@ -29,7 +61,7 @@ def validate_args(arguments: dict):
             "Please verify that it exists and/or that you have the right permissions"
         )
     else:
-        print("The path specified for the manifest file is A-OK")
+        print("The path specified for the manifest file is valid")
 
     if arguments["directory"] is not None:
         target_dir = get_full_path(arguments["directory"])
@@ -68,6 +100,8 @@ def main():
         vars(init_argparse().parse_args())
     )
     pprint(args)
+    modpack_info = parse_manifest(args["manifest"], args["include_forge"])
+    pprint(modpack_info)
 
 
 if __name__ == '__main__':
