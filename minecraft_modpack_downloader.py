@@ -21,7 +21,6 @@ def validate_args(arguments: dict):
     :return:            dict - The updated and checked arguments
                                 with paths converted to Path objects
     """
-
     manifest_file = get_full_path(arguments["manifest"])
 
     if not is_valid_path(manifest_file):
@@ -51,6 +50,7 @@ def validate_args(arguments: dict):
 
 def init_argparse():
     parser = argparse.ArgumentParser()
+    # TODO: Make help text more informative
     parser.add_argument("--manifest", "-m",
                         action="store", type=str, required=True,
                         help="modpack manifest file location")
