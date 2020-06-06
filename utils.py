@@ -32,5 +32,5 @@ def is_valid_path(path: str):
     if path.exists():
         if path.is_file():
             return os.access(path, os.R_OK) and os.access(path, os.W_OK)
-        return True
+        return path.is_dir()
     return False
