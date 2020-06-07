@@ -56,8 +56,9 @@ class Forge:
         # self.url_full = "https://httpbin.org/get"
         self.url_full = "https://i.ytimg.com/vi/0KEv38tAWm4/maxresdefault.jpg"
 
+        # TODO: Figure out how to handle already existing jar file
         if not is_valid_path(self.path_full, strict=True):
-            print("Error: The Forge installer already exists at the specified location, removing")
+            print("The Forge installer already exists at the specified location, removing")
             pathlib.Path(self.path_full).unlink()
 
         response = ""
