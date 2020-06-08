@@ -58,7 +58,7 @@ class Forge:
 
         # TODO: Figure out how to handle already existing jar file
         if not is_valid_path(self.path_full, strict=True):
-            print("The Forge installer already exists at the specified location, removing")
+            print("The file already exists at the specified location, removing")
             pathlib.Path(self.path_full).unlink()
 
         response = ""
@@ -85,7 +85,9 @@ class Forge:
 
         if status == requests.codes.ok:
             self.write_to_disk(response.raw)
-            print("Forge succesfully downloaded")
+            print("File succesfully downloaded")
+
+        response.close()
 
     def handle_request(self) -> requests.Response:
         """
