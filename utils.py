@@ -42,12 +42,16 @@ def is_valid_path(path, strict=False) -> bool:
     :return:        If the path is valid
     """
     path = get_path_as_path_obj(path)
-    if path.exists() and not strict:
-        if path.is_file():
-            return os.access(str(path), os.R_OK)  # read
-        elif path.is_dir():
-            return os.access(str(path), os.W_OK)  # write
-    elif not path.exists() and strict:
-        return True
-    else:
+    try:
+        if strict and path.exists():
+            raise FileExistsError
+        elif not strict and not path.exists():
+            raise FileNotFoundError
+        else:
+            if path.is_file():
+                return os.access(str(path), os.R_OK)  # read
+            elif path.is_dir():
+                return os.access(str(path), os.W_OK)  # write
+            return True
+    except (FileExistsError, FileNotFoundError):
         return False
