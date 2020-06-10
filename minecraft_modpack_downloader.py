@@ -147,7 +147,7 @@ def parse_manifest(manifest: pathlib.Path) -> dict:
     """
     modpack_info = {}
 
-    with manifest.open() as m:
+    with manifest.open(mode="r") as m:
         manifest_file = m.read()
         try:
             manifest_json = json.loads(manifest_file)
@@ -174,13 +174,12 @@ def validate_args(arguments: dict) -> dict:
     """
     manifest_file = get_full_path(arguments["manifest"])
 
-    if not is_valid_path(str(manifest_file)):
+    if not is_valid_path(manifest_file):
         sys.exit(
             "The path specified for the manifest file is invalid\n"
             "Please verify that it exists and/or that you have the right permissions"
         )
-    else:
-        print("The path specified for the manifest file is valid")
+    print("The path specified for the manifest file is valid")
 
     if arguments["directory"] is not None:
         target_dir = get_full_path(arguments["directory"])
@@ -192,7 +191,7 @@ def validate_args(arguments: dict) -> dict:
     arguments["directory"] = target_dir
     arguments["mods_folder"] = target_dir.joinpath("mods")
 
-    if not is_valid_path(str(arguments["mods_folder"])):
+    if is_valid_path(arguments["mods_folder"], strict=True):
         print("Creating folder to store mods in")
         arguments["mods_folder"].mkdir(parents=True)
 
