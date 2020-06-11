@@ -119,7 +119,7 @@ class Downloader:
         except Exception as e:
             print(f"Something went wrong while writing {self.file} to disk: {e}")
         else:
-            print("File succesfully downloaded")
+            print(f"{self.file} succesfully downloaded")
 
 
 class Forge:
