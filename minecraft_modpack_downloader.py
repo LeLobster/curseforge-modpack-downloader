@@ -16,78 +16,61 @@ from utils import (
 )
 
 
-class Forge:
-    # TODO: Move the download/requests bit to separate class, which
-    #  the Forge and Mod classes can inherit
-    def __init__(self, path: pathlib.Path, minecraft: str, forge: str):
-        """
-        Generate the url to download Forge from, and
-         attempt to download it using the requests module
+class Downloader:
+    def __init__(self):
+        self.url = None
+        self.file = None
+        self.path = None
+        self.path_with_file = None
+        # TODO: Maybe implement user-agent randomizer
+        self.headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:77.0) Gecko/20100101 Firefox/77.0"}
+        self.retry_status = [500, 503, 504]
+        self.retry_max = 3
+        self.retry_sleep = 2.5
+        self.timeout = 10
 
-        :param path:        Path to download Forge to
-        :param minecraft:   Required minecraft version
-        :param forge:       Required Forge version
-        """
-        self.version = f"{minecraft}-{forge}"
-        self.jar = f"forge-{self.version}-installer.jar"
-        self.url_base = "https://files.minecraftforge.net/maven/net/minecraftforge/forge"
-        self.url_full = self.generate_url()
-        self.path = path
-        self.path_full = str(path.joinpath(self.jar))
-
-    def generate_url(self) -> str:
-        """
-        The url generator
-
-        :return:    The url
-        """
-        url = f"{self.url_base}/{self.version}/{self.jar}"
-        return url
-
-    def download(self) -> None:
+    def download(self, data: tuple, path: pathlib.Path) -> None:
         """
         The main download action
 
         :return:    Nothing
         """
-        # self.url_full = "https://httpbin.org/delay/5"
-        # self.url_full = "https://httpbin.org/status/404"
-        # self.url_full = "https://httpbin.org/status/503"
-        # self.url_full = "https://httpbin.org/get"
-        self.url_full = "https://i.ytimg.com/vi/0KEv38tAWm4/maxresdefault.jpg"
+        self.url, self.file = data
+        self.path = path
+        self.path_with_file = self.path.joinpath(self.file)
 
-        # TODO: Figure out how to handle already existing jar file
-        if not is_valid_path(self.path_full, strict=True):
-            print("The file already exists at the specified location, removing")
-            pathlib.Path(self.path_full).unlink()
+        if not is_valid_path(self.path_with_file, strict=True):
+            print(f"The file: {self.file} already exists, skipping")
+        else:
+            status = 0
+            attempt = 1
 
-        response = ""
-        status = 0
-        attempt = 1
-        retry = [500, 503, 504]
+            print(f"Downloading {self.file} to: {self.path}")
 
-        print(f"Downlading {self.jar} to: {self.path}")
-        print(self.url_full)
-        while status != requests.codes.ok:
-            response = self.handle_request()
-            status = response.status_code
+            # DEBUG
+            self.url = "https://i.ytimg.com/vi/0KEv38tAWm4/maxresdefault.jpg"
+            print(self.url)
 
-            if status not in retry:
-                break
+            while status != requests.codes.ok:
+                response = self.handle_request()
+                status = response.status_code
 
-            attempt += 1
-            if attempt > 3:
-                print("All download attempts have failed, aborting")
-                break
-            else:
-                print(f"Retrying...")
-            time.sleep(2.5)
+                if status not in self.retry_status:
+                    break
 
-        if status == requests.codes.ok:
-            self.write_to_disk(response.raw)
-            print("File succesfully downloaded")
+                attempt += 1
+                if attempt > self.retry_max:
+                    print("All download attempts have failed, aborting")
+                    break
+                else:
+                    print(f"Retrying...")
+                time.sleep(self.retry_sleep)
 
-        response.close()
+            if status == requests.codes.ok:
+                # noinspection PyUnboundLocalVariable
+                self.write_to_disk(response.raw)
+
+            response.close()
 
     def handle_request(self) -> requests.Response:
         """
@@ -96,10 +79,9 @@ class Forge:
 
         :return:    The request response
         """
-        headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:77.0) Gecko/20100101 Firefox/77.0"}
-
         try:
-            response = requests.get(self.url_full, headers=headers, stream=True, timeout=10)
+            response = requests.get(self.url, headers=self.headers, timeout=self.timeout,
+                                    verify=True, stream=True)
             response.raise_for_status()
 
         # https://requests.readthedocs.io/en/master/api/#exceptions
@@ -116,12 +98,13 @@ class Forge:
         except requests.exceptions.TooManyRedirects as e:
             # badly configured server?
             print(f"Error: The request exceeded the number of maximum redirections\n{e}")
+        except requests.exceptions.SSLError as e:
+            print(f"Error: The SSL certificate could not be verified\n{e}")
         except requests.exceptions.RequestException as e:
             print(f"Encountered an ambiguous error, you're on your own now\n{e}")
 
-        finally:
-            # noinspection PyUnboundLocalVariable
-            return response
+        # noinspection PyUnboundLocalVariable
+        return response
 
     def write_to_disk(self, raw_data) -> None:
         """
@@ -131,10 +114,36 @@ class Forge:
         :return:            Nothing
         """
         try:
-            with open(self.path_full, "wb") as file:
+            with self.path_with_file.open(mode="wb") as file:
                 shutil.copyfileobj(raw_data, file)
         except Exception as e:
-            print(f"Something went wrong while writing file to disk: {e}")
+            print(f"Something went wrong while writing {self.file} to disk: {e}")
+        else:
+            print("File succesfully downloaded")
+
+
+class Forge:
+    def __init__(self, minecraft: str, forge: str):
+        """
+        Creates a Forge object which holds the url
+         to download the Forge installer from
+
+        :param minecraft:   Required minecraft version
+        :param forge:       Required Forge version
+        """
+        self.version = f"{minecraft}-{forge}"
+        self.file = f"forge-{self.version}-installer.jar"
+        self.url_base = "https://files.minecraftforge.net/maven/net/minecraftforge/forge"
+        self.url = self.generate_url()
+
+    def generate_url(self) -> str:
+        """
+        The url generator
+
+        :return:    The url
+        """
+        url = f"{self.url_base}/{self.version}/{self.file}"
+        return url
 
 
 def parse_manifest(manifest: pathlib.Path) -> dict:
@@ -225,8 +234,10 @@ def main():
     pprint(args)
     modpack_info: dict = parse_manifest(args["manifest"])
     pprint(modpack_info)
+    downloader = Downloader()
     if args["include_forge"]:
-        Forge(args["directory"], modpack_info["minecraft"], modpack_info["forge"]).download()
+        forge = Forge(modpack_info["minecraft"], modpack_info["forge"])
+        downloader.download((forge.url, forge.file), args["directory"])
 
 
 if __name__ == "__main__":
