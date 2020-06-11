@@ -90,6 +90,10 @@ def handle_get_request(url, headers, timeout, stream=False) -> requests.Response
     except requests.exceptions.RequestException as e:
         print(f"Encountered an ambiguous error, you're on your own now\n{e}")
 
+    finally:
+        if not stream:
+            # noinspection PyUnboundLocalVariable
+            response.close()
     # noinspection PyUnboundLocalVariable
     return response
 
