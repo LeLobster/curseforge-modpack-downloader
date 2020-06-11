@@ -92,3 +92,8 @@ def handle_get_request(url, headers, timeout, stream=False) -> requests.Response
 
     # noinspection PyUnboundLocalVariable
     return response
+
+
+def get_random_useragent():
+    # TODO: Actually implement this later
+    return "Mozilla/5.0 (X11; Linux x86_64; rv:77.0) Gecko/20100101 Firefox/77.0"
