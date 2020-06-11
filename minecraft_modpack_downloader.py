@@ -12,7 +12,8 @@ import requests
 
 from utils import (
     is_valid_path,
-    get_full_path
+    get_full_path,
+    handle_get_request
 )
 
 
@@ -22,6 +23,7 @@ class Downloader:
         self.file = None
         self.path = None
         self.path_with_file = None
+        self.handle_get_request = handle_get_request
         # TODO: Maybe implement user-agent randomizer
         self.headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:77.0) Gecko/20100101 Firefox/77.0"}
         self.retry_status = [500, 503, 504]
@@ -52,7 +54,7 @@ class Downloader:
             print(self.url)
 
             while status != requests.codes.ok:
-                response = self.handle_request()
+                response = self.handle_get_request(self.url, self.headers, self.timeout, stream=True)
                 status = response.status_code
 
                 if status not in self.retry_status:
@@ -72,40 +74,6 @@ class Downloader:
 
             response.close()
 
-    def handle_request(self) -> requests.Response:
-        """
-        Make the get request, and
-         attempt to handle errors somewhat nicely
-
-        :return:    The request response
-        """
-        try:
-            response = requests.get(self.url, headers=self.headers, timeout=self.timeout,
-                                    verify=True, stream=True)
-            response.raise_for_status()
-
-        # https://requests.readthedocs.io/en/master/api/#exceptions
-        except requests.exceptions.Timeout as e:
-            # will also catch both ConnectTimeout and ReadTimeout
-            print(f"Timeout: The request timed out while waiting for the server to respond"
-                  f"\n{e}")
-        except (requests.exceptions.ConnectionError, requests.exceptions.HTTPError) as e:
-            # a 4XX client error or 5XX server error, potentially raised by raise_for_status
-            print(
-                "Error: The requested resource could not be reached. "
-                "Please, make sure the url is correct and/or the destination is still reachable"
-                f"\n{e}")
-        except requests.exceptions.TooManyRedirects as e:
-            # badly configured server?
-            print(f"Error: The request exceeded the number of maximum redirections\n{e}")
-        except requests.exceptions.SSLError as e:
-            print(f"Error: The SSL certificate could not be verified\n{e}")
-        except requests.exceptions.RequestException as e:
-            print(f"Encountered an ambiguous error, you're on your own now\n{e}")
-
-        # noinspection PyUnboundLocalVariable
-        return response
-
     def write_to_disk(self, raw_data) -> None:
         """
         Write the raw data to disk
@@ -120,6 +88,33 @@ class Downloader:
             print(f"Something went wrong while writing {self.file} to disk: {e}")
         else:
             print(f"{self.file} succesfully downloaded")
+
+
+class Mod:
+    def __init__(self, projectID: str, fileID: str):
+        """
+        Creates a Mod object which holds the url
+         to download the mod file from
+
+        :param projectID:   The projectID
+        :param fileID:      The fileID
+        """
+        self.project = projectID
+        self.file = fileID
+        self.url_pre = f"https://www.curseforge.com/projects/{self.project}"
+
+    def get_actual_url(self):
+        """
+        Constructs a new url, to actually download the mod from,
+         with information retrieved from a request to a generic curseforge url
+         because we can not directly construct the file url ourself
+
+        :return:    The actual file url
+        """
+        pass
+
+    def display_info(self):
+        print(self.url_pre)
 
 
 class Forge:
@@ -224,6 +219,9 @@ def init_argparse() -> argparse.ArgumentParser:
     parser.add_argument("--include-forge", "-f",
                         action="store_true", required=False, default=False,
                         help="also download required forge installer")
+    parser.add_argument("--use-api",
+                        action="store_true", required=False, default=False,
+                        help="Use the curseforge widget API to retrieve mods")
     return parser
 
 
@@ -238,6 +236,9 @@ def main():
     if args["include_forge"]:
         forge = Forge(modpack_info["minecraft"], modpack_info["forge"])
         downloader.download((forge.url, forge.file), args["directory"])
+    for m in modpack_info["mods"]:
+        mod = Mod(m["projectID"], m["fileID"])
+        mod.display_info()
 
 
 if __name__ == "__main__":
