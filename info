@@ -1,1 +1,15 @@
 https://api.cfwidget.com/minecraft/mc-mods/{project_id}
+
+{
+  "error": "in_queue",
+  "message": "This is the first time minecraft/mc-mods/344787 has been "
+  "requested, we are processing your request and will have data for "
+  "the project soon. Please retry your request in 10 seconds.",
+  "title": "Project is queued for fetch"
+}
+
+https://www.curseforge.com/minecraft/mc-mods/industrial-agriculture/download/2920827
+https://www.curseforge.com/minecraft/mc-mods/industrial-agriculture/download/2920827/file
+https://www.curseforge.com/minecraft/mc-mods/industrial-agriculture/files/2920827
+
+https://media.forgecdn.net/files/2920/827/Industrial+Agriculture%5bCore%5d-1.15.2-1.7.0.jar
