@@ -5,6 +5,7 @@ import json
 import pathlib
 import shutil
 import sys
+import textwrap
 import time
 from pprint import pprint
 
@@ -95,7 +96,6 @@ class Mod:
 
         :return:    The actual file download url, or None when mod is not available
         """
-
         while True:
             data = Request(self.api).response
             data_json = json.loads(data.content)
@@ -225,17 +225,26 @@ def init_argparse() -> argparse.ArgumentParser:
 
     :return:    The argparser
     """
-    parser = argparse.ArgumentParser()
-    # TODO: Make help text more informative
+    # noinspection PyTypeChecker
+    parser = argparse.ArgumentParser(description="A Minecraft CurseForge modpack downloader",
+                                     formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("--manifest", "-m",
                         action="store", type=str, required=True,
-                        help="modpack manifest file location")
+                        help=f"the modpack manifest.json file location")
     parser.add_argument("--directory", "-d",
                         action="store", type=str, required=False, default=None,
-                        help="target download location")
+                        help=textwrap.dedent("""the desired download location
+if omitted this will be the directory which holds the manifest file
+downloaded mods are always placed in a sub-directory named mods""")
+                        )
     parser.add_argument("--include-forge", "-f",
                         action="store_true", required=False, default=False,
-                        help="also download required forge installer")
+                        help=textwrap.dedent("""also download the required forge installer
+will be placed in the same dir as --directory""")
+                        )
+    parser.add_argument("--verbose", "-v",
+                        action="store_true", required=False, default=False,
+                        help="increase verbosity")
     return parser
 
 
@@ -247,8 +256,10 @@ def main():
     downloader = Downloader()
 
     print(f"Starting download of: {modpack_info['name']}")
-    pprint(args)
-    pprint(modpack_info)
+
+    if args["verbose"]:
+        pprint(args)
+        pprint(modpack_info)
 
     if args["include_forge"]:
         forge = Forge(modpack_info["minecraft"], modpack_info["forge"])
