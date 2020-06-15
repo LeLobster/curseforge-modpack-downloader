@@ -37,7 +37,7 @@ class Downloader:
         self.path_with_file = self.path.joinpath(self.file)
 
         if not is_valid_path(self.path_with_file, strict=True):
-            print(f"The file: {self.file} already exists, skipping")
+            print(f"The file {self.file} already exists, skipping")
         else:
             print(f"Downloading {self.file}")
 
