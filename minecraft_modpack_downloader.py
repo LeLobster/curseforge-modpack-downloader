@@ -200,6 +200,7 @@ def parse_manifest(manifest: pathlib.Path) -> dict:
     print("Manifest file parsed succesfully")
 
     modpack_info["name"] = f"{manifest_json['name']} v{manifest_json['version']}"
+    modpack_info["mod_count"] = len(manifest_json["files"])
     modpack_info["forge"] = manifest_json["minecraft"]["modLoaders"][0]["id"].replace("forge-", "")
     modpack_info["minecraft"] = manifest_json["minecraft"]["version"]
     modpack_info["mods"] = [mod for mod in manifest_json['files']]
@@ -286,7 +287,7 @@ def main():
     modpack_info: dict = parse_manifest(args["manifest"])
     downloader = Downloader()
 
-    print(f"Starting download of: {modpack_info['name']}")
+    print(f"Starting download of: {modpack_info['name']} [{modpack_info['mod_count']} mods]")
 
     if args["verbose"]:
         pprint(args)
