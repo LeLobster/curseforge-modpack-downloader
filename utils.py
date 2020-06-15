@@ -3,6 +3,7 @@
 import os
 import pathlib
 import random
+import time
 
 import requests
 
@@ -60,43 +61,84 @@ def is_valid_path(path, strict=False) -> bool:
         return False
 
 
-def handle_get_request(url, headers, timeout, stream=False) -> requests.Response:
-    """
-    Make the get request, and
-     attempt to handle errors somewhat nicely
+class Request:
+    def __init__(self, url, stream=False):
+        self.status = 0
+        self.attempt = 1
+        self.timeout = 10
+        self.retry_status = [500, 503, 504]
+        self.retry_max = 3
+        self.retry_sleep = 2.5
+        self.headers = {"User-Agent": f"{get_random_useragent()}"}
+        self.url = url
+        self.stream = stream
+        self.response = self.handle_get_request()
 
-    :return:    The request response
-    """
-    try:
-        response = requests.get(url, headers=headers, timeout=timeout,
-                                verify=True, stream=stream)
-        response.raise_for_status()
+    def make_get_request(self) -> requests.Response:
+        """
+        Make the get request, and
+         attempt to handle errors somewhat nicely
 
-    # https://requests.readthedocs.io/en/master/api/#exceptions
-    except requests.exceptions.Timeout as e:
-        # will also catch both ConnectTimeout and ReadTimeout
-        print(f"Timeout: The request timed out while waiting for the server to respond"
-              f"\n{e}")
-    except (requests.exceptions.ConnectionError, requests.exceptions.HTTPError) as e:
+        :return:        The response
+        """
+        try:
+            response = requests.get(
+                self.url, headers=self.headers, timeout=self.timeout, verify=True, stream=self.stream
+            )
+            response.raise_for_status()
+
+        except requests.exceptions.Timeout as e:
+            # will also catch both ConnectTimeout and ReadTimeout
+            print("Timeout: The request timed out while waiting for the server to respond"
+                  f"\n{e}")
+            response = None
         # a 4XX client error or 5XX server error, potentially raised by raise_for_status
-        print(
-            "Error: The requested resource could not be reached. "
-            "Please, make sure the url is correct and/or the destination is still reachable"
-            f"\n{e}")
-    except requests.exceptions.TooManyRedirects as e:
-        # badly configured server?
-        print(f"Error: The request exceeded the number of maximum redirections\n{e}")
-    except requests.exceptions.SSLError as e:
-        print(f"Error: The SSL certificate could not be verified\n{e}")
-    except requests.exceptions.RequestException as e:
-        print(f"Encountered an ambiguous error, you're on your own now\n{e}")
-
-    finally:
-        if not stream:
+        except (requests.exceptions.ConnectionError, requests.exceptions.HTTPError) as e:
             # noinspection PyUnboundLocalVariable
-            response.close()
-    # noinspection PyUnboundLocalVariable
-    return response
+            if response.status_code == 403:
+                print("Forbidden: The request was not allowed")
+            else:
+                print("Error: The requested resource could not be reached")
+            print(e)
+        # badly configured server?
+        except requests.exceptions.TooManyRedirects as e:
+            print(f"Error: The request exceeded the number of maximum redirections\n{e}")
+        except requests.exceptions.SSLError as e:
+            print(f"Error: The SSL certificate could not be verified\n{e}")
+        except requests.exceptions.RequestException as e:
+            print(f"Encountered an ambiguous error, you're on your own now\n{e}")
+
+        finally:
+            if response is not None and not self.stream:
+                # noinspection PyUnboundLocalVariable
+                response.close()
+
+        return response
+
+    def handle_get_request(self) -> requests.Response:
+        """
+        Handle the get request's response
+
+        :return:    The request response
+        """
+
+        while self.status != requests.codes.ok:
+            response = self.make_get_request()
+            self.status = response.status_code if response is not None else None
+
+            if self.status not in self.retry_status:
+                break
+
+            self.attempt += 1
+            if self.attempt > self.retry_max:
+                print("All download attempts have failed, aborting")
+                break
+            else:
+                print(f"Retrying...")
+            time.sleep(self.retry_sleep)
+
+        # noinspection PyUnboundLocalVariable
+        return response
 
 
 def get_random_useragent() -> str:

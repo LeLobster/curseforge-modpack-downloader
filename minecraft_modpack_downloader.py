@@ -5,7 +5,6 @@ import json
 import pathlib
 import shutil
 import sys
-import time
 from pprint import pprint
 
 import requests
@@ -13,7 +12,7 @@ import requests
 from utils import (
     is_valid_path,
     get_full_path,
-    handle_get_request
+    Request
 )
 
 
@@ -23,13 +22,6 @@ class Downloader:
         self.file = None
         self.path = None
         self.path_with_file = None
-        self.handle_get_request = handle_get_request
-        # TODO: Maybe implement user-agent randomizer
-        self.headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:77.0) Gecko/20100101 Firefox/77.0"}
-        self.retry_status = [500, 503, 504]
-        self.retry_max = 3
-        self.retry_sleep = 2.5
-        self.timeout = 10
 
     def download(self, data: tuple, path: pathlib.Path) -> None:
         """
@@ -37,42 +29,22 @@ class Downloader:
 
         :return:    Nothing
         """
-        self.url, self.file = data
+        self.file, self.url = data
         self.path = path
         self.path_with_file = self.path.joinpath(self.file)
 
         if not is_valid_path(self.path_with_file, strict=True):
             print(f"The file: {self.file} already exists, skipping")
         else:
-            status = 0
-            attempt = 1
-
             print(f"Downloading {self.file} to: {self.path}")
 
-            # DEBUG
-            self.url = "https://i.ytimg.com/vi/0KEv38tAWm4/maxresdefault.jpg"
-            print(self.url)
+            response = Request(self.url, stream=True).response
 
-            while status != requests.codes.ok:
-                response = self.handle_get_request(self.url, self.headers, self.timeout, stream=True)
-                status = response.status_code
+            if response is not None:
+                if response.status_code == requests.codes.ok:
+                    self.write_to_disk(response.raw)
 
-                if status not in self.retry_status:
-                    break
-
-                attempt += 1
-                if attempt > self.retry_max:
-                    print("All download attempts have failed, aborting")
-                    break
-                else:
-                    print(f"Retrying...")
-                time.sleep(self.retry_sleep)
-
-            if status == requests.codes.ok:
-                # noinspection PyUnboundLocalVariable
-                self.write_to_disk(response.raw)
-
-            response.close()
+                response.close()
 
     def write_to_disk(self, raw_data) -> None:
         """
@@ -160,6 +132,7 @@ def parse_manifest(manifest: pathlib.Path) -> dict:
             sys.exit(f"An error occurred while parsing the manifest file\n\"{e}\"")
     print("Manifest file parsed succesfully")
 
+    modpack_info["name"] = f"{manifest_json['name']} v{manifest_json['version']}"
     modpack_info["forge"] = manifest_json["minecraft"]["modLoaders"][0]["id"].replace("forge-", "")
     modpack_info["minecraft"] = manifest_json["minecraft"]["version"]
     modpack_info["mods"] = [mod for mod in manifest_json['files']]
@@ -219,9 +192,6 @@ def init_argparse() -> argparse.ArgumentParser:
     parser.add_argument("--include-forge", "-f",
                         action="store_true", required=False, default=False,
                         help="also download required forge installer")
-    parser.add_argument("--use-api",
-                        action="store_true", required=False, default=False,
-                        help="Use the curseforge widget API to retrieve mods")
     return parser
 
 
@@ -229,13 +199,15 @@ def main():
     args: dict = validate_args(
         vars(init_argparse().parse_args())
     )
-    pprint(args)
     modpack_info: dict = parse_manifest(args["manifest"])
-    pprint(modpack_info)
     downloader = Downloader()
+
+    pprint(args)
+    pprint(modpack_info)
+
     if args["include_forge"]:
         forge = Forge(modpack_info["minecraft"], modpack_info["forge"])
-        downloader.download((forge.url, forge.file), args["directory"])
+        downloader.download((forge.file, forge.url), args["directory"])
     for m in modpack_info["mods"]:
         mod = Mod(m["projectID"], m["fileID"])
         mod.display_info()
