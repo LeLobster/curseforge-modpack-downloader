@@ -237,6 +237,12 @@ def init_argparse() -> argparse.ArgumentParser:
 if omitted this will be the directory which holds the manifest file
 downloaded mods are always placed in a sub-directory named mods""")
                         )
+    # TODO: Implement using the forgesvc API and use it as default
+    parser.add_argument("--switch-api",
+                        action="store_true", required=False, default=False,
+                        help=textwrap.dedent("""in case something is changed about the default api and this script fails
+with this switch active it will use the CurseForge Widget API instead""")
+                        )
     parser.add_argument("--include-forge", "-f",
                         action="store_true", required=False, default=False,
                         help=textwrap.dedent("""also download the required forge installer
