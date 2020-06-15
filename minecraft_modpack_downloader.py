@@ -84,7 +84,7 @@ class Mod:
         self.file = None
         self.url = self.generate_url_via_api()
 
-    def generate_url_via_api(self) -> str:
+    def generate_url_via_api(self):
         """
         Construct an url which directly points to media.forgecdn.net
          with info gathererd from the CurseForge Widget API
@@ -94,7 +94,6 @@ class Mod:
          I have no idea how reliable it is
 
         :return:    The actual file download url, or None when mod is not available
-        # TODO: Implement latter statement
         """
 
         while True:
@@ -120,14 +119,18 @@ class Mod:
                     data_point = mod
                     break
 
-        self.file = data_point["name"]
-        data_point["id"] = str(data_point["id"])
+        if isinstance(data_point, dict):
+            self.file = data_point["name"]
+            data_point["id"] = str(data_point["id"])
 
-        # I don't understand the logic behind these forgecdn urls, but it seems they just split
-        #  the fileID after the 4th number
-        # TODO: Make sure to test thoroughly too
-        url = f"https://media.forgecdn.net/files/{data_point['id'][:4]}/{data_point['id'][4:]}/{self.file}"
-        return url
+            # I don't understand the logic behind these forgecdn urls, but it seems they just split
+            #  the fileID after the 4th number
+            # TODO: Make sure to test this thoroughly too
+            url = f"https://media.forgecdn.net/files/{data_point['id'][:4]}/{data_point['id'][4:]}/{self.file}"
+            return url
+        else:
+            print(f"Error: {self.project_id} does not contain a file with id: {self.file}")
+            return None
 
 
 class Forge:
@@ -253,7 +256,8 @@ def main():
 
     for m in modpack_info["mods"]:
         mod = Mod(modpack_info["minecraft"], m["projectID"], m["fileID"])
-        downloader.download((mod.file, mod.url), args["mods_folder"])
+        if mod.url is not None:
+            downloader.download((mod.file, mod.url), args["mods_folder"])
 
 
 if __name__ == "__main__":
