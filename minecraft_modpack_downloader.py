@@ -5,6 +5,7 @@ import json
 import pathlib
 import shutil
 import sys
+import time
 from pprint import pprint
 
 import requests
@@ -22,6 +23,7 @@ class Downloader:
         self.file = None
         self.path = None
         self.path_with_file = None
+        self.stream = True
 
     def download(self, data: tuple, path: pathlib.Path) -> None:
         """
@@ -36,15 +38,19 @@ class Downloader:
         if not is_valid_path(self.path_with_file, strict=True):
             print(f"The file: {self.file} already exists, skipping")
         else:
-            print(f"Downloading {self.file} to: {self.path}")
+            print(f"Downloading {self.file}")
 
-            response = Request(self.url, stream=True).response
+            # DEBUG
+            self.url = "https://i.ytimg.com/vi/0KEv38tAWm4/maxresdefault.jpg"
 
-            if response is not None:
-                if response.status_code == requests.codes.ok:
-                    self.write_to_disk(response.raw)
+            response = Request(self.url, stream=self.stream).response
 
-                response.close()
+            if response is None or response.status_code != requests.codes.ok:
+                print(f"Failed to download: {self.file} ")
+            elif response.status_code == requests.codes.ok:
+                self.write_to_disk(response.raw)
+                if self.stream:
+                    response.close()
 
     def write_to_disk(self, raw_data) -> None:
         """
@@ -63,30 +69,65 @@ class Downloader:
 
 
 class Mod:
-    def __init__(self, projectID: str, fileID: str):
+    def __init__(self, minecraft: str, project_id: str, file_id: str):
         """
         Creates a Mod object which holds the url
          to download the mod file from
 
-        :param projectID:   The projectID
-        :param fileID:      The fileID
+        :param project_id:   The projectID
+        :param file_id:      The fileID
         """
-        self.project = projectID
-        self.file = fileID
-        self.url_pre = f"https://www.curseforge.com/projects/{self.project}"
+        self.minecraft = minecraft
+        self.project_id = project_id
+        self.file_id = file_id
+        self.api = f"https://api.cfwidget.com/minecraft/mc-mods/{self.project_id}"
+        self.file = None
+        self.url = self.generate_url_via_api()
 
-    def get_actual_url(self):
+    def generate_url_via_api(self) -> str:
         """
-        Constructs a new url, to actually download the mod from,
-         with information retrieved from a request to a generic curseforge url
-         because we can not directly construct the file url ourself
+        Construct an url which directly points to media.forgecdn.net
+         with info gathererd from the CurseForge Widget API
+        Because curseforge.com redirects to edge.forgecdn.net, which redirects to media.forgecdn.net
+         and somewhere along the way CloudFlare is nagging about a captcha, resulting in a 403
+        So this seems to be the only working solution to avoid the CloudFlare captcha, but
+         I have no idea how reliable it is
 
-        :return:    The actual file url
+        :return:    The actual file download url, or None when mod is not available
+        # TODO: Implement latter statement
         """
-        pass
 
-    def display_info(self):
-        print(self.url_pre)
+        while True:
+            data = Request(self.api).response
+            data_json = json.loads(data.content)
+            # When a mod has not been accessed before via the API it returns an error response, but
+            #  the mod is queued for fetch and it says to retry the request after 10 seconds
+            if "error" in data_json:
+                print(f"Project {self.project_id} is queued for fetch, waiting 2 seconds")
+                time.sleep(2)
+            else:
+                break
+
+        # The "download" key holds the main download, which I think is the most recent stable verison
+        #  and all the other versions are stored in "versions" split up by minecraft version
+        data_point = data_json["download"]
+        if data_point["id"] != self.file_id:
+            # Hopefully this is safe to do
+            # TODO: Make sure to test if it actually is
+            data_point = data_json["versions"][self.minecraft]
+            for mod in data_point:
+                if mod["id"] == self.file_id:
+                    data_point = mod
+                    break
+
+        self.file = data_point["name"]
+        data_point["id"] = str(data_point["id"])
+
+        # I don't understand the logic behind these forgecdn urls, but it seems they just split
+        #  the fileID after the 4th number
+        # TODO: Make sure to test thoroughly too
+        url = f"https://media.forgecdn.net/files/{data_point['id'][:4]}/{data_point['id'][4:]}/{self.file}"
+        return url
 
 
 class Forge:
@@ -202,15 +243,17 @@ def main():
     modpack_info: dict = parse_manifest(args["manifest"])
     downloader = Downloader()
 
+    print(f"Starting download of: {modpack_info['name']}")
     pprint(args)
     pprint(modpack_info)
 
     if args["include_forge"]:
         forge = Forge(modpack_info["minecraft"], modpack_info["forge"])
         downloader.download((forge.file, forge.url), args["directory"])
+
     for m in modpack_info["mods"]:
-        mod = Mod(m["projectID"], m["fileID"])
-        mod.display_info()
+        mod = Mod(modpack_info["minecraft"], m["projectID"], m["fileID"])
+        downloader.download((mod.file, mod.url), args["mods_folder"])
 
 
 if __name__ == "__main__":
