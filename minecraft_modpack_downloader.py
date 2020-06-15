@@ -70,7 +70,7 @@ class Downloader:
 
 
 class Mod:
-    def __init__(self, minecraft: str, project_id: str, file_id: str):
+    def __init__(self, minecraft: str, project_id: str, file_id: str, switch_to_widget_api: bool):
         """
         Creates a Mod object which holds the url
          to download the mod file from
@@ -81,18 +81,22 @@ class Mod:
         self.minecraft = minecraft
         self.project_id = project_id
         self.file_id = file_id
-        self.api = f"https://api.cfwidget.com/minecraft/mc-mods/{self.project_id}"
         self.file = None
-        self.url = self.generate_url_via_api()
+        if switch_to_widget_api:
+            self.api = f"https://api.cfwidget.com/minecraft/mc-mods/{self.project_id}"
+            self.url = self.generate_url_via_widget_api()
+        else:
+            self.api = f"https://addons-ecs.forgesvc.net/api/v2/addon/{project_id}/file/{file_id}"
+            self.url = self.generate_url_via_forgesvc_api()
 
-    def generate_url_via_api(self):
+    def generate_url_via_widget_api(self):
         """
         Construct an url which directly points to media.forgecdn.net
          with info gathererd from the CurseForge Widget API
         Because curseforge.com redirects to edge.forgecdn.net, which redirects to media.forgecdn.net
          and somewhere along the way CloudFlare is nagging about a captcha, resulting in a 403
         So this seems to be the only working solution to avoid the CloudFlare captcha, but
-         I have no idea how reliable it is
+         I have no idea how reliable it is due to the media.forgecdn.net url
 
         :return:    The actual file download url, or None when mod is not available
         """
@@ -131,6 +135,25 @@ class Mod:
         else:
             print(f"Error: Project {self.project_id} does not contain a file with id: {self.file_id}")
             return None
+
+    def generate_url_via_forgesvc_api(self):
+        """
+        Retrieve a mod download url via the forgesvc API
+
+        :return:    The url
+        """
+        # TODO: Maybe combine both API functions into one
+        data = Request(self.api).response
+        data_json = json.loads(data.content)
+
+        self.file = data_json["fileName"]
+
+        if not data_json["isAvailable"]:
+            print(f"Error: Project {self.project_id} does not contain a file with id: {self.file_id}")
+            return None
+
+        url = data_json["downloadUrl"]
+        return url
 
 
 class Forge:
@@ -200,12 +223,14 @@ def validate_args(arguments: dict) -> dict:
             "The path specified for the manifest file is invalid\n"
             "Please verify that it exists and/or that you have the right permissions"
         )
-    print("The path specified for the manifest file is valid")
+    if arguments["verbose"]:
+        print("The path specified for the manifest file is valid")
 
     if arguments["directory"] is not None:
         target_dir = get_full_path(arguments["directory"])
     else:
-        print("Download directory not specified, using manifest parent directory")
+        if arguments["verbose"]:
+            print("Download directory not specified, using manifest parent directory")
         target_dir = manifest_file.parent
 
     arguments["manifest"] = manifest_file
@@ -272,7 +297,7 @@ def main():
         downloader.download((forge.file, forge.url), args["directory"])
 
     for m in modpack_info["mods"]:
-        mod = Mod(modpack_info["minecraft"], m["projectID"], m["fileID"])
+        mod = Mod(modpack_info["minecraft"], m["projectID"], m["fileID"], args["switch_api"])
         if mod.url is not None:
             downloader.download((mod.file, mod.url), args["mods_folder"])
 
