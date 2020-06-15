@@ -99,7 +99,12 @@ def handle_get_request(url, headers, timeout, stream=False) -> requests.Response
     return response
 
 
-def get_random_useragent():
+def get_random_useragent() -> str:
+    """
+    Retrieves a random user-agent string from a list
+
+    :return:    The user-agent
+    """
     user_agent = random.choice([
         "Mozilla/5.0 (X11; Linux x86_64; rv:77.0) Gecko/20100101 Firefox/77.0",
         "Mozilla/5.0 (X11; OpenBSD amd64; rv:77.0) Gecko/20100101 Firefox/77.0",
