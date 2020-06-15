@@ -65,7 +65,7 @@ class Downloader:
         except Exception as e:
             print(f"Something went wrong while writing {self.file} to disk: {e}")
         else:
-            print(f"{self.file} succesfully downloaded")
+            print(f"Succesfully downloaded: {self.file}")
 
 
 class Mod:
@@ -129,7 +129,7 @@ class Mod:
             url = f"https://media.forgecdn.net/files/{data_point['id'][:4]}/{data_point['id'][4:]}/{self.file}"
             return url
         else:
-            print(f"Error: {self.project_id} does not contain a file with id: {self.file}")
+            print(f"Error: Project {self.project_id} does not contain a file with id: {self.file_id}")
             return None
 
 
