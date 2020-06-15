@@ -2,6 +2,7 @@
 
 import os
 import pathlib
+import random
 
 import requests
 
@@ -99,5 +100,21 @@ def handle_get_request(url, headers, timeout, stream=False) -> requests.Response
 
 
 def get_random_useragent():
-    # TODO: Actually implement this later
-    return "Mozilla/5.0 (X11; Linux x86_64; rv:77.0) Gecko/20100101 Firefox/77.0"
+    user_agent = random.choice([
+        "Mozilla/5.0 (X11; Linux x86_64; rv:77.0) Gecko/20100101 Firefox/77.0",
+        "Mozilla/5.0 (X11; OpenBSD amd64; rv:77.0) Gecko/20100101 Firefox/77.0",
+        "Mozilla/5.0 (X11; Ubuntu; Linux armv7l; rv:77.0) Gecko/20100101 Firefox/77.0",
+        "Mozilla/5.0 (X11; FreeBSD i386; rv:77.0) Gecko/20100101 Firefox/77.0",
+        "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:77.0) Gecko/20100101 Firefox/77.0",
+        "Mozilla/5.0 (X11; Linux aarch64; rv:77.0) Gecko/20100101 Firefox/77.0",
+        "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:77.0) Gecko/20100101 Firefox/77.0",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:77.0) Gecko/20100101 Firefox/77.0",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:77.0) Gecko/20100101 Firefox/77.0",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4; rv:77.0) Gecko/20100101 Firefox/77.0",
+        "Mozilla/5.0 (Intel Mac OS X 10_15_4; rv:77.0) Gecko/20100101 Firefox/77.0",
+        "Mozilla/5.0 (Windows NT 6.2; rv:77.0) Gecko/20100101 Firefox/77.0",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:77.0) Gecko/20100101 Firefox/77.0",
+        "Mozilla/5.0 (Windows NT 6.2; Win64; x64; rv:77.0) Gecko/20100101 Firefox/77.0",
+        "Mozilla/5.0 (Windows NT 6.3; Win64; x64; rv:77.0) Gecko/20100101 Firefox/77.0"
+    ])
+    return user_agent
