@@ -90,24 +90,24 @@ class Request:
 
         except requests.exceptions.Timeout as e:
             # will also catch both ConnectTimeout and ReadTimeout
-            print("Timeout: The request timed out while waiting for the server to respond"
-                  f"\n{e}")
+            safe_print("Timeout: The request timed out while waiting for the server to respond"
+                       f"\n{e}")
             response = None
         # a 4XX client error or 5XX server error, potentially raised by raise_for_status
         except (requests.exceptions.ConnectionError, requests.exceptions.HTTPError) as e:
             # noinspection PyUnboundLocalVariable
             if response.status_code == 403:
-                print("Forbidden: The request was not allowed")
+                safe_print("Forbidden: The request was not allowed")
             else:
-                print("Error: The requested resource could not be reached")
+                safe_print("Error: The requested resource could not be reached")
             print(e)
         # badly configured server?
         except requests.exceptions.TooManyRedirects as e:
-            print(f"Error: The request exceeded the number of maximum redirections\n{e}")
+            safe_print(f"Error: The request exceeded the number of maximum redirections\n{e}")
         except requests.exceptions.SSLError as e:
-            print(f"Error: The SSL certificate could not be verified\n{e}")
+            safe_print(f"Error: The SSL certificate could not be verified\n{e}")
         except requests.exceptions.RequestException as e:
-            print(f"Encountered an ambiguous error, you're on your own now\n{e}")
+            safe_print(f"Encountered an ambiguous error, you're on your own now\n{e}")
 
         finally:
             if response is not None and not self.stream:
@@ -132,10 +132,11 @@ class Request:
 
             self.attempt += 1
             if self.attempt > self.retry_max:
-                print("All download attempts have failed, aborting")
+                # safe_print("All download attempts have failed, aborting")
                 break
             else:
-                print(f"Retrying...")
+                pass
+                # safe_print(f"Retrying...")
             time.sleep(self.retry_sleep)
 
         # noinspection PyUnboundLocalVariable

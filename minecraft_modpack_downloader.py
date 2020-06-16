@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import concurrent.futures
 import json
 import pathlib
 import shutil
@@ -14,8 +15,29 @@ import requests
 from utils import (
     is_valid_path,
     get_full_path,
+    safe_print,
     Request
 )
+
+
+def execute_threadpool(mod_data: list, folder: pathlib.Path):
+    """
+    Set up a threadpool and concurrently process all the mods
+
+    :param mod_data:    The needed mod information
+    :param folder:      The target download folder
+    :return:            Nothing
+    """
+
+    def executor_helper(data: tuple):
+        minecraft, project_id, file_id, api = data
+        mod = Mod(minecraft, project_id, file_id, api)
+        if mod.url is not None:
+            downloader = Downloader()
+            downloader.download((mod.file, mod.url), folder)
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        executor.map(executor_helper, mod_data)
 
 
 class Downloader:
@@ -37,17 +59,14 @@ class Downloader:
         self.path_with_file = self.path.joinpath(self.file)
 
         if not is_valid_path(self.path_with_file, strict=True):
-            print(f"The file {self.file} already exists, skipping")
+            safe_print(f"The file {self.file} already exists, skipping")
         else:
-            print(f"Downloading {self.file}")
-
-            # DEBUG
-            self.url = "https://i.ytimg.com/vi/0KEv38tAWm4/maxresdefault.jpg"
+            # safe_print(f"Downloading {self.file}")
 
             response = Request(self.url, stream=self.stream).response
 
             if response is None or response.status_code != requests.codes.ok:
-                print(f"Failed to download: {self.file} ")
+                safe_print(f"Failed to download: {self.file} ")
             elif response.status_code == requests.codes.ok:
                 self.write_to_disk(response.raw)
                 if self.stream:
@@ -64,9 +83,9 @@ class Downloader:
             with self.path_with_file.open(mode="wb") as file:
                 shutil.copyfileobj(raw_data, file)
         except Exception as e:
-            print(f"Something went wrong while writing {self.file} to disk: {e}")
+            safe_print(f"Something went wrong while writing {self.file} to disk: {e}")
         else:
-            print(f"Succesfully downloaded: {self.file}")
+            safe_print(f"Succesfully downloaded {self.file}")
 
 
 class Mod:
@@ -106,7 +125,7 @@ class Mod:
             # When a mod has not been accessed before via the API it returns an error response, but
             #  the mod is queued for fetch and it says to retry the request after 10 seconds
             if "error" in data_json:
-                print(f"Project {self.project_id} is queued for fetch, waiting 2 seconds")
+                safe_print(f"Project {self.project_id} is queued for fetch, waiting 2 seconds")
                 time.sleep(2)
             else:
                 break
@@ -133,7 +152,7 @@ class Mod:
             url = f"https://media.forgecdn.net/files/{data_point['id'][:4]}/{data_point['id'][4:]}/{self.file}"
             return url
         else:
-            print(f"Error: Project {self.project_id} does not contain a file with id: {self.file_id}")
+            safe_print(f"Error: Project {self.project_id} does not contain a file with id: {self.file_id}")
             return None
 
     def generate_url_via_forgesvc_api(self):
@@ -149,7 +168,7 @@ class Mod:
         self.file = data_json["fileName"]
 
         if not data_json["isAvailable"]:
-            print(f"Error: Project {self.project_id} does not contain a file with id: {self.file_id}")
+            safe_print(f"Error: Project {self.project_id} does not contain a file with id: {self.file_id}")
             return None
 
         url = data_json["downloadUrl"]
@@ -239,7 +258,8 @@ def validate_args(arguments: dict) -> dict:
     arguments["mods_folder"] = target_dir.joinpath("mods")
 
     if is_valid_path(arguments["mods_folder"], strict=True):
-        print("Creating folder to store mods in")
+        if arguments["verbose"]:
+            print("Creating folder to store mods in")
         arguments["mods_folder"].mkdir(parents=True)
 
     return arguments
@@ -285,7 +305,6 @@ def main():
         vars(init_argparse().parse_args())
     )
     modpack_info: dict = parse_manifest(args["manifest"])
-    downloader = Downloader()
 
     print(f"Starting download of: {modpack_info['name']} [{modpack_info['mod_count']} mods]")
 
@@ -295,12 +314,12 @@ def main():
 
     if args["include_forge"]:
         forge = Forge(modpack_info["minecraft"], modpack_info["forge"])
+        downloader = Downloader()
         downloader.download((forge.file, forge.url), args["directory"])
 
-    for m in modpack_info["mods"]:
-        mod = Mod(modpack_info["minecraft"], m["projectID"], m["fileID"], args["switch_api"])
-        if mod.url is not None:
-            downloader.download((mod.file, mod.url), args["mods_folder"])
+    mods = [(modpack_info["minecraft"], m['projectID'], m['fileID'], args["switch_api"])
+            for m in modpack_info["mods"]]
+    execute_threadpool(mods, args["mods_folder"])
 
 
 if __name__ == "__main__":
