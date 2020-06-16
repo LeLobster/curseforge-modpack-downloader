@@ -4,6 +4,7 @@ import os
 import pathlib
 import random
 import time
+from threading import Lock
 
 import requests
 
@@ -165,3 +166,17 @@ def get_random_useragent() -> str:
         "Mozilla/5.0 (Windows NT 6.3; Win64; x64; rv:77.0) Gecko/20100101 Firefox/77.0"
     ])
     return user_agent
+
+
+def safe_print(*a, **b):
+    """
+    A thread safe print function
+    Temporarily locks a thread before printing
+
+    :param a:   *values to print
+    :param b:   **arguments
+    :return:    Nothing
+    """
+    print_lock = Lock()
+    with print_lock:
+        print(*a, **b)
